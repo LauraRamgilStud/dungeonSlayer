@@ -7,8 +7,9 @@ function start() {
   setupEventlisteners();
   createTiles();
   displayTiles();
-
+  createItems();
   requestAnimationFrame(tick);
+  showDebugging();
 }
 
 function setupEventlisteners() {
@@ -19,16 +20,16 @@ function setupEventlisteners() {
 /* MODEL */
 //#region
 const player = {
-  x: 0,
-  y: 0,
+  x: 23,
+  y: 23,
   hitbox: {
-    x: 4,
-    y: 7,
+    x: 6,
+    y: 9,
     w: 12,
-    h: 17,
+    h: 20,
   },
-  regx: 11,
-  regy: 25,
+  regx: 10,
+  regy: 14,
   speed: 100,
   moving: false,
   direction: undefined,
@@ -41,7 +42,7 @@ const controls = {
   down: false,
 };
 
-const tiles = [
+const tilesGrid = [
   [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2],
   [0, 0, 1, 0, 0, 5, 0, 0, 0, 0, 0, 0, 2, 6, 6, 2],
   [0, 0, 1, 0, 0, 0, 0, 5, 0, 0, 5, 0, 2, 6, 6, 2],
@@ -54,12 +55,25 @@ const tiles = [
   [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 3, 0, 0, 0, 0, 0],
 ];
 
-const GRID_HEIGHT = tiles.length;
-const GRID_WIDTH = tiles[0].length;
+const itemsGrid = [
+  [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+];
+
+const GRID_HEIGHT = tilesGrid.length;
+const GRID_WIDTH = tilesGrid[0].length;
 const TILE_SIZE = 32;
 
 function getTileAtCoord({ row, col }) {
-  return tiles[row][col];
+  return tilesGrid[row][col];
 }
 
 function getCoordFromPos({ x, y }) {
@@ -76,8 +90,25 @@ function getPosFromCoord({ row, col }) {
   };
 }
 
-function getTileCoordUnder(player) {
-  return getCoordFromPos({ x: player.x - player.regx, y: player.regy });
+function getTileCoordUnder(player, newPos = { x: player.x, y: player.y }) {
+  const tileCoords = [];
+  const topLeft = {
+    x: newPos.x - player.regx + player.hitbox.x,
+    y: newPos.y - player.regy + player.hitbox.y,
+  };
+  const topRight = { x: topLeft.x + player.hitbox.w, y: topLeft.y };
+  const bottomLeft = { x: topLeft.x, y: topLeft.y + player.hitbox.h };
+  const bottomRight = {
+    x: topLeft.x + player.hitbox.w,
+    y: topLeft.y + player.hitbox.h,
+  };
+
+  tileCoords.push(getCoordFromPos(topLeft));
+  tileCoords.push(getCoordFromPos(topRight));
+  tileCoords.push(getCoordFromPos(bottomLeft));
+  tileCoords.push(getCoordFromPos(bottomRight));
+
+  return tileCoords;
 }
 
 function tick(timestamp) {
@@ -89,7 +120,20 @@ function tick(timestamp) {
   movePlayer(deltaTime);
   displayPlayerAtPosition();
   displayPlayerAnimation();
-  showDebugTileUnderPlayer();
+  showDebugTilesUnderPlayer();
+}
+
+function checkForItems() {
+  const items = getItemsUnderPlayer();
+  if (items.length > 0) {
+    console.log(`There are ${items.length} items under player`);
+  }
+}
+
+function getItemsUnderPlayer() {
+  return getTileCoordUnder(player).filter(
+    ({ row, col }) => itemsGrid[row][col] != 0
+  );
 }
 
 function movePlayer(deltaTime) {
@@ -140,7 +184,7 @@ function movePlayer(deltaTime) {
   }
 
   if (moving) {
-    if (moveValid(newPos)) {
+    if (canMovePlayerToPos(player, newPos)) {
       player.x = newPos.x;
       player.y = newPos.y;
       player.moving = true;
@@ -150,25 +194,12 @@ function movePlayer(deltaTime) {
   }
 }
 
-function moveValid(pos) {
-  const { row, col } = getCoordFromPos(pos);
-  /* cconst gamefield = document.querySelector("#gamefield");
-  const visualPlayer = document.querySelector("#player");
+function canMovePlayerToPos(player, pos) {
+  const coords = getTileCoordUnder(player, pos);
+  return coords.every(canMoveTo);
+}
 
-  const width = gamefield.clientWidth;
-  const height = gamefield.clientHeight;
-
-  const playerWidth = visualPlayer.clientWidth;
-  const playerHeight = visualPlayer.clientHeight;
-
-  if (
-    pos.x < 0 ||
-    pos.x >= width - playerWidth ||
-    pos.y < 0 ||
-    pos.y >= height - playerHeight
-  ) {
-    return false;
-  } */
+function canMoveTo({ row, col }) {
   if (row < 0 || row >= GRID_HEIGHT || col < 0 || col >= GRID_WIDTH) {
     return false;
   }
@@ -190,38 +221,6 @@ function moveValid(pos) {
 
   return true;
 }
-
-/* function canMoveTo(pos) {
-  const gamefield = document.querySelector("#gamefield");
-  const visualPlayer = document.querySelector("#player");
-
-  const width = gamefield.clientWidth;
-  const height = gamefield.clientHeight;
-
-  const playerWidth = visualPlayer.clientWidth;
-  const playerHeight = visualPlayer.clientHeight;
-
-  if (
-    pos.x < 0 ||
-    pos.x > width - playerWidth ||
-    pos.y < 0 ||
-    pos.y > height - playerHeight
-  ) {
-    player.moving = false;
-    return false;
-  } else {
-    return true;
-  }
-
-  const tileType = getTileAtCoord({ row, col });
-  switch (tileType) {
-    case 1:
-    case 2:
-    case 3:
-      return true;
-      break;
-  }
-} */
 
 function keyDownEvent(evt) {
   if (evt.key === "ArrowUp" || evt.key === "w") {
@@ -251,7 +250,25 @@ function keyUpEvent(evt) {
 /* VIEW */
 //#region
 
+function createItems() {
+  const visualItems = document.querySelector("#items");
+
+  for (let row = 0; row < GRID_HEIGHT; row++) {
+    for (let col = 0; col < GRID_WIDTH; col++) {
+      if (itemsGrid[row][col] !== 0) {
+        const item = document.createElement("div");
+        item.classList.add("item");
+        item.classList.add("gold");
+        item.style.setProperty("--row", row);
+        item.style.setProperty("--col", col);
+        visualItems.append(item);
+      }
+    }
+  }
+}
+
 function createTiles() {
+  const gamefield = document.querySelector("#gamefield");
   const background = document.querySelector("#background");
 
   for (let i = 0; i < GRID_HEIGHT; i++) {
@@ -261,9 +278,9 @@ function createTiles() {
       background.appendChild(tile);
     }
   }
-  background.style.setProperty("--GRID_WIDTH", GRID_WIDTH);
-  background.style.setProperty("--GRID_HEIGHT", GRID_HEIGHT);
-  background.style.setProperty("--TILE_SIZE", TILE_SIZE + "px");
+  gamefield.style.setProperty("--GRID_WIDTH", GRID_WIDTH);
+  gamefield.style.setProperty("--GRID_HEIGHT", GRID_HEIGHT);
+  gamefield.style.setProperty("--TILE_SIZE", TILE_SIZE + "px");
 }
 
 function displayTiles() {
@@ -326,23 +343,25 @@ function displayPlayerAtPosition() {
 
 //#endregion
 
+/*DEBUGGING*/
+//#region
+
+let highlightTiles = [];
+
 function showDebugging() {
-  showDebugTileUnderPlayer();
+  showDebugTilesUnderPlayer();
   showDebugPlayerRect();
   showDebugRegistrationPoint();
+  showDebugHitbox();
 }
 
-let lastPlayerCoord = { row: 0, col: 0 };
+function showDebugTilesUnderPlayer() {
+  highlightTiles.forEach(unHighlightTile);
 
-function showDebugTileUnderPlayer() {
-  const coord = getCoordFromPos(player);
+  const tileCoords = getTileCoordUnder(player);
+  tileCoords.forEach(highlightTile);
 
-  if (coord.row != lastPlayerCoord.row || coord.col != lastPlayerCoord.col) {
-    unHighlightTile(lastPlayerCoord);
-    highlightTile(coord);
-  }
-
-  lastPlayerCoord = coord;
+  highlightTiles = tileCoords;
 }
 
 function highlightTile({ row, col }) {
@@ -374,3 +393,48 @@ function showDebugRegistrationPoint() {
     visualPlayer.classList.add("show-reg-point");
   }
 }
+
+function showDebugHitbox() {
+  const visualPlayer = document.getElementById("player");
+  if (!visualPlayer.classList.contains("show-hitbox")) {
+    visualPlayer.classList.add("show-hitbox");
+  }
+
+  visualPlayer.style.setProperty("--hitboxW", player.hitbox.w + "px");
+  visualPlayer.style.setProperty("--hitboxH", player.hitbox.h + "px");
+  visualPlayer.style.setProperty("--hitboxX", player.hitbox.x + "px");
+  visualPlayer.style.setProperty("--hitboxY", player.hitbox.y + "px");
+}
+//#endregion
+
+/* function canMoveTo(pos) {
+  const gamefield = document.querySelector("#gamefield");
+  const visualPlayer = document.querySelector("#player");
+
+  const width = gamefield.clientWidth;
+  const height = gamefield.clientHeight;
+
+  const playerWidth = visualPlayer.clientWidth;
+  const playerHeight = visualPlayer.clientHeight;
+
+  if (
+    pos.x < 0 ||
+    pos.x > width - playerWidth ||
+    pos.y < 0 ||
+    pos.y > height - playerHeight
+  ) {
+    player.moving = false;
+    return false;
+  } else {
+    return true;
+  }
+
+  const tileType = getTileAtCoord({ row, col });
+  switch (tileType) {
+    case 1:
+    case 2:
+    case 3:
+      return true;
+      break;
+  }
+} */

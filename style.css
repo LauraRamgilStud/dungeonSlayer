@@ -65,7 +65,7 @@ body {
   background-image: url("images/Characters/Character\ 1.png");
   background-size: 400% 400%;
   image-rendering: pixelated;
-  outline: 1px black solid;
+  position: absolute;
 }
 
 #player.animate {
@@ -130,6 +130,26 @@ body {
   }
 }
 
+#items {
+  grid-area: 1/1;
+  display: grid;
+  position: relative;
+  grid-template-columns: repeat(var(--GRID_WIDTH), var(--TILE_SIZE));
+  grid-template-rows: repeat(var(--GRID_HEIGHT), var(--TILE_SIZE));
+}
+
+.item {
+  width: var(--TILE_SIZE);
+  aspect-ratio: 1/1;
+  background-size: 100%;
+  image-rendering: pixelated;
+  grid-area: calc(var(--row) + 1) / calc(var(--col) + 1);
+}
+
+.item {
+  background-image: url("images/items/gold.png");
+}
+
 /* Debugging */
 .highlight {
   outline: 2px dashed yellow;
@@ -147,4 +167,13 @@ body {
   width: 3px;
   height: 3px;
   translate: var(--regX) var(--regY);
+}
+
+.show-hitbox::after {
+  content: "";
+  position: absolute;
+  width: var(--hitboxW);
+  height: var(--hitboxH);
+  translate: var(--hitboxX) var(--hitboxY);
+  outline: 2px solid rgb(0, 255, 229);
 }
