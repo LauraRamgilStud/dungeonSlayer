@@ -45,7 +45,7 @@ const controls = {
 const tilesGrid = [
   [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2],
   [0, 0, 1, 0, 0, 5, 0, 0, 0, 0, 0, 0, 2, 6, 6, 2],
-  [0, 0, 1, 0, 0, 0, 0, 5, 0, 0, 5, 0, 2, 6, 6, 2],
+  [5, 0, 1, 0, 0, 0, 0, 5, 0, 0, 5, 0, 2, 6, 6, 2],
   [0, 0, 1, 0, 0, 0, 0, 0, 5, 5, 0, 0, 2, 2, 4, 2],
   [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0],
   [0, 0, 1, 1, 1, 1, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0],
@@ -118,6 +118,8 @@ function tick(timestamp) {
   lastTimestamp = timestamp;
 
   movePlayer(deltaTime);
+
+  checkForItems();
   displayPlayerAtPosition();
   displayPlayerAnimation();
   showDebugTilesUnderPlayer();
