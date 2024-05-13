@@ -59,7 +59,8 @@ body {
   grid-area: 1/1;
 }
 
-#player {
+#player,
+#enemy {
   width: 24px;
   aspect-ratio: 16 /20;
   background-image: url("images/Characters/Character\ 1.png");
@@ -68,28 +69,37 @@ body {
   position: absolute;
 }
 
-#player.animate {
+#enemy {
+  background-image: url("images/Characters/Character\ 5.png");
+}
+
+#player.animate,
+#enemy.animate {
   animation-duration: 1s;
   animation-timing-function: steps(4);
   animation-iteration-count: infinite;
 }
 
-#player.down {
+#player.down,
+#enemy.down {
   background-position: 0% 0%;
   animation-name: down;
 }
 
-#player.up {
+#player.up,
+#enemy.up {
   background-position: 0% -100%;
   animation-name: up;
 }
 
-#player.right {
+#player.right,
+#enemy.right {
   background-position: 0% -300%;
   animation-name: right;
 }
 
-#player.left {
+#player.left,
+#enemy.left {
   background-position: 0% -200%;
   animation-name: left;
 }

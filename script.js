@@ -20,7 +20,7 @@ function setupEventlisteners() {
 /* MODEL */
 //#region
 const player = {
-  x: 23,
+  x: 145,
   y: 23,
   hitbox: {
     x: 6,
@@ -31,6 +31,22 @@ const player = {
   regx: 10,
   regy: 14,
   speed: 100,
+  moving: false,
+  direction: undefined,
+};
+
+const enemy = {
+  x: 145,
+  y: 23,
+  hitbox: {
+    x: 6,
+    y: 9,
+    w: 12,
+    h: 20,
+  },
+  regx: 10,
+  regy: 14,
+  speed: 80,
   moving: false,
   direction: undefined,
 };
@@ -72,11 +88,11 @@ const GRID_HEIGHT = tilesGrid.length;
 const GRID_WIDTH = tilesGrid[0].length;
 const TILE_SIZE = 32;
 
-function getTileAtCoord({ row, col }) {
+export function getTileAtCoord({ row, col }) {
   return tilesGrid[row][col];
 }
 
-function getCoordFromPos({ x, y }) {
+export function getCoordFromPos({ x, y }) {
   return {
     row: Math.floor(y / TILE_SIZE),
     col: Math.floor(x / TILE_SIZE),
@@ -121,7 +137,8 @@ function tick(timestamp) {
 
   checkForItems();
   displayPlayerAtPosition();
-  displayPlayerAnimation();
+  displayAnimation(player, "player");
+  displayAnimation(enemy, "enemy");
   showDebugTilesUnderPlayer();
 }
 
@@ -324,17 +341,17 @@ function getClassForTileType(tileType) {
   }
 }
 
-function displayPlayerAnimation() {
-  const visualPlayer = document.querySelector("#player");
+/* function displayAnimation(animate, name) {
+  const visualAnimate = document.querySelector(`#${name}`);
 
-  if (!player.moving) {
-    visualPlayer.classList.remove("animate");
+  if (!animate.moving) {
+    visualAnimate.classList.remove("animate");
   } else {
-    visualPlayer.classList.add("animate");
-    visualPlayer.classList.remove("up", "down", "left", "right");
-    visualPlayer.classList.add(player.direction);
+    visualAnimate.classList.add("animate");
+    visualAnimate.classList.remove("up", "down", "left", "right");
+    visualAnimate.classList.add(animate.direction);
   }
-}
+} */
 
 function displayPlayerAtPosition() {
   const visualPlayer = document.querySelector("#player");
@@ -354,7 +371,8 @@ function showDebugging() {
   showDebugTilesUnderPlayer();
   showDebugPlayerRect();
   showDebugRegistrationPoint();
-  showDebugHitbox();
+  showDebugHitbox(player, "player");
+  showDebugHitbox(enemy, "enemy");
 }
 
 function showDebugTilesUnderPlayer() {
@@ -396,47 +414,112 @@ function showDebugRegistrationPoint() {
   }
 }
 
-function showDebugHitbox() {
-  const visualPlayer = document.getElementById("player");
-  if (!visualPlayer.classList.contains("show-hitbox")) {
-    visualPlayer.classList.add("show-hitbox");
+function showDebugHitbox(character, name) {
+  const visual = document.getElementById(`${name}`);
+  if (!visual.classList.contains("show-hitbox")) {
+    visual.classList.add("show-hitbox");
   }
 
-  visualPlayer.style.setProperty("--hitboxW", player.hitbox.w + "px");
-  visualPlayer.style.setProperty("--hitboxH", player.hitbox.h + "px");
-  visualPlayer.style.setProperty("--hitboxX", player.hitbox.x + "px");
-  visualPlayer.style.setProperty("--hitboxY", player.hitbox.y + "px");
+  visual.style.setProperty("--hitboxW", character.hitbox.w + "px");
+  visual.style.setProperty("--hitboxH", character.hitbox.h + "px");
+  visual.style.setProperty("--hitboxX", character.hitbox.x + "px");
+  visual.style.setProperty("--hitboxY", character.hitbox.y + "px");
 }
 //#endregion
 
-/* function canMoveTo(pos) {
-  const gamefield = document.querySelector("#gamefield");
-  const visualPlayer = document.querySelector("#player");
+/* export function findPath(start, goal) {
+  const openList = [];
+  const closedList = [];
+  const cameFrom = {};
+  const gScore = {};
+  const fScore = {};
 
-  const width = gamefield.clientWidth;
-  const height = gamefield.clientHeight;
+  // Initialize starting point
+  gScore[start] = 0;
+  fScore[start] = heuristic(start, goal);
+  openList.push(start);
 
-  const playerWidth = visualPlayer.clientWidth;
-  const playerHeight = visualPlayer.clientHeight;
+  while (openList.length > 0) {
+    // Get the node with the lowest fScore from the open list
+    const current = openList.reduce(
+      (minNode, node) => (fScore[node] < fScore[minNode] ? node : minNode),
+      openList[0]
+    );
 
-  if (
-    pos.x < 0 ||
-    pos.x > width - playerWidth ||
-    pos.y < 0 ||
-    pos.y > height - playerHeight
-  ) {
-    player.moving = false;
-    return false;
-  } else {
-    return true;
+    // If current node is the goal, reconstruct and return the path
+    if (current.x === goal.x && current.y === goal.y) {
+      return reconstructPath(cameFrom, current);
+    }
+
+    // Remove current node from open list and add it to closed list
+    openList.splice(openList.indexOf(current), 1);
+    closedList.push(current);
+
+    // Get neighbors of current node
+    const neighbors = getNeighbors(current);
+
+    neighbors.forEach((neighbor) => {
+      if (closedList.includes(neighbor)) return;
+
+      const tentativeGScore = gScore[current] + 1; // Assuming each step has a cost of 1
+
+      if (!openList.includes(neighbor) || tentativeGScore < gScore[neighbor]) {
+        cameFrom[neighbor] = current;
+        gScore[neighbor] = tentativeGScore;
+        fScore[neighbor] = gScore[neighbor] + heuristic(neighbor, goal);
+
+        if (!openList.includes(neighbor)) {
+          openList.push(neighbor);
+        }
+      }
+    });
   }
 
-  const tileType = getTileAtCoord({ row, col });
-  switch (tileType) {
-    case 1:
-    case 2:
-    case 3:
-      return true;
-      break;
+  // If no path found, return empty array
+  return [];
+}
+
+function heuristic(node, goal) {
+  // Euclidean distance heuristic
+  return Math.sqrt((goal.x - node.x) ** 2 + (goal.y - node.y) ** 2);
+}
+
+function reconstructPath(cameFrom, current) {
+  const path = [current];
+  while (cameFrom[current]) {
+    current = cameFrom[current];
+    path.unshift(current);
   }
+  return path;
+}
+
+function getNeighbors(node) {
+  // Assuming grid-based movement with 8-way movement (including diagonals)
+  const neighbors = [];
+  const directions = [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 }, // Cardinal directions
+    { x: 1, y: 1 },
+    { x: -1, y: 1 },
+    { x: 1, y: -1 },
+    { x: -1, y: -1 }, // Diagonal directions
+  ];
+
+  directions.forEach((dir) => {
+    const neighbor = { x: node.x + dir.x, y: node.y + dir.y };
+    // Add neighbor only if it's within the grid bounds and is not an obstacle
+    if (
+      neighbor.x >= 0 &&
+      neighbor.x < GRID_WIDTH &&
+      neighbor.y >= 0 &&
+      neighbor.y < GRID_HEIGHT &&
+      getTileAtCoord({ row: 3, col: 6 }) === 1 // Check if it's a valid tile (1 or 5)
+    ) {
+      neighbors.push(neighbor);
+    }
+  });
+
+  return neighbors;
 } */
