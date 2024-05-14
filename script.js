@@ -2,63 +2,6 @@
 import { aStarSearch } from "./utils.js";
 let lastTimestamp = 0;
 
-window.addEventListener("load", start);
-
-function start() {
-  setupEventlisteners();
-  createTiles();
-  displayTiles();
-  createItems();
-  requestAnimationFrame(tick);
-  showDebugging();
-}
-
-function setupEventlisteners() {
-  document.addEventListener("keydown", keyDownEvent);
-  document.addEventListener("keyup", keyUpEvent);
-}
-
-/* MODEL */
-//#region
-const player = {
-  x: 145,
-  y: 23,
-  hitbox: {
-    x: 6,
-    y: 9,
-    w: 12,
-    h: 20,
-  },
-  regx: 10,
-  regy: 14,
-  speed: 100,
-  moving: false,
-  direction: undefined,
-};
-
-const enemy = {
-  x: 145,
-  y: 23,
-  hitbox: {
-    x: 6,
-    y: 9,
-    w: 12,
-    h: 20,
-  },
-  regx: 10,
-  regy: 14,
-  speed: 80,
-  moving: false,
-  direction: undefined,
-};
-
-const controls = {
-  left: false,
-  right: false,
-  up: false,
-  down: false,
-};
-
 export const tilesGrid = [
   [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2],
   [0, 0, 1, 0, 0, 5, 0, 0, 0, 0, 0, 0, 2, 6, 6, 2],
@@ -119,6 +62,63 @@ export const GRID_HEIGHT = tilesGrid.length;
 export const GRID_WIDTH = tilesGrid[0].length;
 const TILE_SIZE = 32;
 
+window.addEventListener("load", start);
+
+function start() {
+  setupEventlisteners();
+  createTiles();
+  displayTiles();
+  createItems();
+  requestAnimationFrame(tick);
+  showDebugging();
+}
+
+function setupEventlisteners() {
+  document.addEventListener("keydown", keyDownEvent);
+  document.addEventListener("keyup", keyUpEvent);
+}
+
+/* MODEL */
+//#region
+const player = {
+  x: 150,
+  y: 200,
+  hitbox: {
+    x: 6,
+    y: 9,
+    w: 12,
+    h: 20,
+  },
+  regx: 10,
+  regy: 14,
+  speed: 100,
+  moving: false,
+  direction: undefined,
+};
+
+const enemy = {
+  x: 20,
+  y: 23,
+  hitbox: {
+    x: 6,
+    y: 9,
+    w: 12,
+    h: 20,
+  },
+  regx: 10,
+  regy: 14,
+  speed: 50,
+  moving: false,
+  direction: undefined,
+};
+
+const controls = {
+  left: false,
+  right: false,
+  up: false,
+  down: false,
+};
+
 function getTileAtCoord({ row, col }) {
   return tilesGrid[row][col];
 }
@@ -165,12 +165,15 @@ function tick(timestamp) {
   lastTimestamp = timestamp;
 
   movePlayer(deltaTime);
-
+  moveEnemyTowardsPlayer(deltaTime);
   checkForItems();
-  displayPlayerAtPosition();
+  displayPlayerAtPosition(player, "player");
+  displayPlayerAtPosition(enemy, "enemy");
   displayAnimation(player, "player");
   displayAnimation(enemy, "enemy");
   showDebugTilesUnderPlayer();
+  //moveEnemyTowardsPlayer(deltaTime);
+  //aStarSearch(tilesGrid, getCoordFromPos(enemy), getCoordFromPos(player));
 }
 
 function checkForItems() {
@@ -295,6 +298,126 @@ function keyUpEvent(evt) {
     controls.right = false;
   }
 }
+
+function moveEnemyTowardsPlayer(deltaTime) {
+  // Calculate path using A* search algorithm
+  const path = aStarSearch(
+    tilesGrid,
+    getCoordFromPos(enemy),
+    getCoordFromPos(player)
+  );
+
+  let moving = false;
+
+  const newPos = {
+    x: enemy.x,
+    y: enemy.y,
+  };
+
+  // If path is found
+  if (path && path.length > 1) {
+    const nextTile = path[1]; // Next tile in the path (excluding current position)
+
+    // Convert tile coordinates to position
+    const nextPos = getPosFromCoord(nextTile);
+
+    // Calculate direction to move towards next position
+    const deltaX = nextPos.x - enemy.x;
+    const deltaY = nextPos.y - enemy.y;
+
+    // Determine direction based on deltaX and deltaY
+    if (deltaX > 0) {
+      enemy.direction = "right";
+    } else if (deltaX < 0) {
+      enemy.direction = "left";
+    } else if (deltaY > 0) {
+      enemy.direction = "down";
+    } else if (deltaY < 0) {
+      enemy.direction = "up";
+    }
+
+    // Move the enemy towards the next position
+    // Adjust for diagonal movement
+    if (Math.abs(deltaX) > 0 && Math.abs(deltaY) > 0) {
+      // Diagonal movement
+      const diagonalSpeed = (enemy.speed * Math.sqrt(2)) / 2;
+      const horizontalDelta = Math.sign(deltaX) * diagonalSpeed * deltaTime;
+      const verticalDelta = Math.sign(deltaY) * diagonalSpeed * deltaTime;
+
+      if (
+        canMovePlayerToPos(enemy, {
+          x: newPos.x + horizontalDelta,
+          y: newPos.y,
+        })
+      ) {
+        newPos.x += horizontalDelta;
+      }
+
+      if (
+        canMovePlayerToPos(enemy, { x: newPos.x, y: newPos.y + verticalDelta })
+      ) {
+        newPos.y += verticalDelta;
+      }
+
+      moving = true;
+    } else {
+      // Non-diagonal movement
+      if (
+        enemy.direction === "left" &&
+        newPos.x - enemy.speed * deltaTime >= 0 &&
+        canMovePlayerToPos(enemy, {
+          x: newPos.x - enemy.speed * deltaTime,
+          y: newPos.y,
+        })
+      ) {
+        moving = true;
+        newPos.x -= enemy.speed * deltaTime;
+      } else if (
+        enemy.direction === "right" &&
+        newPos.x + enemy.speed * deltaTime < GRID_WIDTH &&
+        canMovePlayerToPos(enemy, {
+          x: newPos.x + enemy.speed * deltaTime,
+          y: newPos.y,
+        })
+      ) {
+        moving = true;
+        newPos.x += enemy.speed * deltaTime;
+      }
+
+      if (
+        enemy.direction === "up" &&
+        newPos.y - enemy.speed * deltaTime >= 0 &&
+        canMovePlayerToPos(enemy, {
+          x: newPos.x,
+          y: newPos.y - enemy.speed * deltaTime,
+        })
+      ) {
+        moving = true;
+        newPos.y -= enemy.speed * deltaTime;
+      } else if (
+        enemy.direction === "down" &&
+        newPos.y + enemy.speed * deltaTime < GRID_HEIGHT &&
+        canMovePlayerToPos(enemy, {
+          x: newPos.x,
+          y: newPos.y + enemy.speed * deltaTime,
+        })
+      ) {
+        moving = true;
+        newPos.y += enemy.speed * deltaTime;
+      }
+    }
+
+    if (moving) {
+      enemy.x = newPos.x;
+      enemy.y = newPos.y;
+      enemy.moving = true;
+    }
+  } else {
+    // No path found or enemy is already at the player's position
+    enemy.moving = false;
+  }
+}
+
 //#endregion
 
 /* VIEW */
@@ -384,10 +507,10 @@ function displayAnimation(animate, name) {
   }
 }
 
-function displayPlayerAtPosition() {
-  const visualPlayer = document.querySelector("#player");
-  visualPlayer.style.translate = `${player.x - player.regx}px ${
-    player.y - player.regy
+function displayPlayerAtPosition(animate, name) {
+  const visual = document.querySelector(`#${name}`);
+  visual.style.translate = `${animate.x - animate.regx}px ${
+    animate.y - animate.regy
   }px`;
 }
 
@@ -457,100 +580,3 @@ function showDebugHitbox(character, name) {
   visual.style.setProperty("--hitboxY", character.hitbox.y + "px");
 }
 //#endregion
-
-/* export function findPath(start, goal) {
-  const openList = [];
-  const closedList = [];
-  const cameFrom = {};
-  const gScore = {};
-  const fScore = {};
-
-  // Initialize starting point
-  gScore[start] = 0;
-  fScore[start] = heuristic(start, goal);
-  openList.push(start);
-
-  while (openList.length > 0) {
-    // Get the node with the lowest fScore from the open list
-    const current = openList.reduce(
-      (minNode, node) => (fScore[node] < fScore[minNode] ? node : minNode),
-      openList[0]
-    );
-
-    // If current node is the goal, reconstruct and return the path
-    if (current.x === goal.x && current.y === goal.y) {
-      return reconstructPath(cameFrom, current);
-    }
-
-    // Remove current node from open list and add it to closed list
-    openList.splice(openList.indexOf(current), 1);
-    closedList.push(current);
-
-    // Get neighbors of current node
-    const neighbors = getNeighbors(current);
-
-    neighbors.forEach((neighbor) => {
-      if (closedList.includes(neighbor)) return;
-
-      const tentativeGScore = gScore[current] + 1; // Assuming each step has a cost of 1
-
-      if (!openList.includes(neighbor) || tentativeGScore < gScore[neighbor]) {
-        cameFrom[neighbor] = current;
-        gScore[neighbor] = tentativeGScore;
-        fScore[neighbor] = gScore[neighbor] + heuristic(neighbor, goal);
-
-        if (!openList.includes(neighbor)) {
-          openList.push(neighbor);
-        }
-      }
-    });
-  }
-
-  // If no path found, return empty array
-  return [];
-}
-
-function heuristic(node, goal) {
-  // Euclidean distance heuristic
-  return Math.sqrt((goal.x - node.x) ** 2 + (goal.y - node.y) ** 2);
-}
-
-function reconstructPath(cameFrom, current) {
-  const path = [current];
-  while (cameFrom[current]) {
-    current = cameFrom[current];
-    path.unshift(current);
-  }
-  return path;
-}
-
-function getNeighbors(node) {
-  // Assuming grid-based movement with 8-way movement (including diagonals)
-  const neighbors = [];
-  const directions = [
-    { x: 1, y: 0 },
-    { x: -1, y: 0 },
-    { x: 0, y: 1 },
-    { x: 0, y: -1 }, // Cardinal directions
-    { x: 1, y: 1 },
-    { x: -1, y: 1 },
-    { x: 1, y: -1 },
-    { x: -1, y: -1 }, // Diagonal directions
-  ];
-
-  directions.forEach((dir) => {
-    const neighbor = { x: node.x + dir.x, y: node.y + dir.y };
-    // Add neighbor only if it's within the grid bounds and is not an obstacle
-    if (
-      neighbor.x >= 0 &&
-      neighbor.x < GRID_WIDTH &&
-      neighbor.y >= 0 &&
-      neighbor.y < GRID_HEIGHT &&
-      getTileAtCoord({ row: 3, col: 6 }) === 1 // Check if it's a valid tile (1 or 5)
-    ) {
-      neighbors.push(neighbor);
-    }
-  });
-
-  return neighbors;
-} */

@@ -1,7 +1,4 @@
-import { GRID_HEIGHT, GRID_WIDTH, tilesGrid } from "./script.js";
-
-let ROW = GRID_HEIGHT;
-let COL = GRID_WIDTH;
+import { tilesGrid } from "./script.js";
 
 class cell {
   constructor() {
@@ -13,8 +10,8 @@ class cell {
   }
 }
 
-function isValid(row, col) {
-  return row >= 0 && row < ROW && col >= 0 && col < COL;
+function isValid(row, col, GRID_HEIGHT, GRID_WIDTH) {
+  return row >= 0 && row < GRID_HEIGHT && col >= 0 && col < GRID_WIDTH;
 }
 
 function isUnBlocked(tilesGrid, row, col) {
@@ -52,42 +49,38 @@ function tracePath(cellDetails, dest) {
       cellDetails[row][col].parent_j == col
     )
   ) {
-    Path.push([row, col]);
+    Path.push({ row, col });
     let temp_row = cellDetails[row][col].parent_i;
     let temp_col = cellDetails[row][col].parent_j;
     row = temp_row;
     col = temp_col;
   }
 
-  Path.push([row, col]);
-  while (Path.length > 0) {
-    let p = Path[0];
-    Path.shift();
+  Path.push({ row, col });
+  console.log(Path);
+  Path.reverse();
 
-    if (p[0] == 2 || p[0] == 1) {
-      console.log("-> (" + p[0] + ", " + (p[1] - 1) + ")");
-    } else console.log("-> (" + p[0] + ", " + p[1] + ")");
-  }
-
-  return;
+  return Path;
 }
 
-export function aStarSearch(grid, src, dest) {
-  console.log(src);
-  console.log(dest);
+export function aStarSearch(tilesGrid, src, dest) {
+  let GRID_HEIGHT = tilesGrid.length;
+  let GRID_WIDTH = tilesGrid[0].length;
+  console.log(src.row + " " + src.col);
+  console.log(GRID_HEIGHT + " " + GRID_WIDTH);
   // If the source is out of range
-  if (isValid(src.row, src.col) == false) {
+  if (isValid(src.row, src.col, GRID_HEIGHT, GRID_WIDTH) == false) {
     console.log("Source is invalid\n");
     return;
   }
-  if (isValid(dest.row, dest.col) == false) {
+  if (isValid(dest.row, dest.col, GRID_HEIGHT, GRID_WIDTH) == false) {
     console.log("Destination is invalid\n");
     return;
   }
 
   if (
-    isUnBlocked(grid, src.row, src.col) == false ||
-    isUnBlocked(grid, dest.row, dest.col) == false
+    isUnBlocked(tilesGrid, src.row, src.col) == false ||
+    isUnBlocked(tilesGrid, dest.row, dest.col) == false
   ) {
     console.log("Source or the destination is blocked\n");
     return;
@@ -98,22 +91,22 @@ export function aStarSearch(grid, src, dest) {
     return;
   }
 
-  let closedList = new Array(ROW);
-  for (let i = 0; i < ROW; i++) {
-    closedList[i] = new Array(COL).fill(false);
+  let closedList = new Array(GRID_HEIGHT);
+  for (let i = 0; i < GRID_HEIGHT; i++) {
+    closedList[i] = new Array(GRID_WIDTH).fill(false);
   }
 
-  let cellDetails = new Array(ROW);
-  for (let i = 0; i < ROW; i++) {
-    cellDetails[i] = new Array(COL);
+  let cellDetails = new Array(GRID_HEIGHT);
+  for (let i = 0; i < GRID_HEIGHT; i++) {
+    cellDetails[i] = new Array(GRID_WIDTH);
   }
 
   let i, j;
 
-  for (i = 0; i < ROW; i++) {
-    for (j = 0; j < COL; j++) {
+  for (i = 0; i < GRID_HEIGHT; i++) {
+    for (j = 0; j < GRID_WIDTH; j++) {
       cellDetails[i][j] = new cell();
-      cellDetails[i][j].f = 2147483647;
+      cellDetails[i][j].f = 2147483647; //Infinity?
       cellDetails[i][j].g = 2147483647;
       cellDetails[i][j].h = 2147483647;
       cellDetails[i][j].parent_i = -1;
@@ -147,17 +140,17 @@ export function aStarSearch(grid, src, dest) {
 
     //----------- 1st Successor (North) ------------
 
-    if (isValid(i - 1, j) == true) {
+    if (isValid(i - 1, j, GRID_HEIGHT, GRID_WIDTH) == true) {
       if (isDestination(i - 1, j, dest) == true) {
         cellDetails[i - 1][j].parent_i = i;
         cellDetails[i - 1][j].parent_j = j;
         console.log("The destination cell is found\n");
-        tracePath(cellDetails, dest);
         foundDest = true;
+        return tracePath(cellDetails, dest);
         return;
       } else if (
         closedList[i - 1][j] == false &&
-        isUnBlocked(grid, i - 1, j) == true
+        isUnBlocked(tilesGrid, i - 1, j) == true
       ) {
         gNew = cellDetails[i][j].g + 1;
         hNew = calculateHValue(i - 1, j, dest);
@@ -180,17 +173,16 @@ export function aStarSearch(grid, src, dest) {
 
     //----------- 2nd Successor (South) ------------
 
-    if (isValid(i + 1, j) == true) {
+    if (isValid(i + 1, j, GRID_HEIGHT, GRID_WIDTH) == true) {
       if (isDestination(i + 1, j, dest) == true) {
         cellDetails[i + 1][j].parent_i = i;
         cellDetails[i + 1][j].parent_j = j;
         console.log("The destination cell is found\n");
-        tracePath(cellDetails, dest);
         foundDest = true;
-        return;
+        return tracePath(cellDetails, dest);
       } else if (
         closedList[i + 1][j] == false &&
-        isUnBlocked(grid, i + 1, j) == true
+        isUnBlocked(tilesGrid, i + 1, j) == true
       ) {
         gNew = cellDetails[i][j].g + 1;
         hNew = calculateHValue(i + 1, j, dest);
@@ -211,18 +203,17 @@ export function aStarSearch(grid, src, dest) {
 
     //----------- 3rd Successor (East) ------------
 
-    if (isValid(i, j + 1) == true) {
+    if (isValid(i, j + 1, GRID_HEIGHT, GRID_WIDTH) == true) {
       if (isDestination(i, j + 1, dest) == true) {
         // Set the Parent of the destination cell
         cellDetails[i][j + 1].parent_i = i;
         cellDetails[i][j + 1].parent_j = j;
         console.log("The destination cell is found\n");
-        tracePath(cellDetails, dest);
         foundDest = true;
-        return;
+        return tracePath(cellDetails, dest);
       } else if (
         closedList[i][j + 1] == false &&
-        isUnBlocked(grid, i, j + 1) == true
+        isUnBlocked(tilesGrid, i, j + 1) == true
       ) {
         gNew = cellDetails[i][j].g + 1;
         hNew = calculateHValue(i, j + 1, dest);
@@ -244,17 +235,17 @@ export function aStarSearch(grid, src, dest) {
 
     //----------- 4th Successor (West) ------------
 
-    if (isValid(i, j - 1) == true) {
+    if (isValid(i, j - 1, GRID_HEIGHT, GRID_WIDTH) == true) {
       if (isDestination(i, j - 1, dest) == true) {
         cellDetails[i][j - 1].parent_i = i;
         cellDetails[i][j - 1].parent_j = j;
         console.log("The destination cell is found\n");
-        tracePath(cellDetails, dest);
+
         foundDest = true;
-        return;
+        return tracePath(cellDetails, dest);
       } else if (
         closedList[i][j - 1] == false &&
-        isUnBlocked(grid, i, j - 1) == true
+        isUnBlocked(tilesGrid, i, j - 1) == true
       ) {
         gNew = cellDetails[i][j].g + 1;
         hNew = calculateHValue(i, j - 1, dest);
@@ -278,7 +269,7 @@ export function aStarSearch(grid, src, dest) {
     //------------
 
     // Only process this cell if this is a valid one
-    if (isValid(i - 1, j + 1) == true) {
+    if (isValid(i - 1, j + 1, GRID_HEIGHT, GRID_WIDTH) == true) {
       // If the destination cell is the same as the
       // current successor
       if (isDestination(i - 1, j + 1, dest) == true) {
@@ -286,12 +277,11 @@ export function aStarSearch(grid, src, dest) {
         cellDetails[i - 1][j + 1].parent_i = i;
         cellDetails[i - 1][j + 1].parent_j = j;
         console.log("The destination cell is found\n");
-        tracePath(cellDetails, dest);
         foundDest = true;
-        return;
+        return tracePath(cellDetails, dest);
       } else if (
         closedList[i - 1][j + 1] == false &&
-        isUnBlocked(grid, i - 1, j + 1) == true
+        isUnBlocked(tilesGrid, i - 1, j + 1) == true
       ) {
         gNew = cellDetails[i][j].g + 1.414;
         hNew = calculateHValue(i - 1, j + 1, dest);
@@ -310,17 +300,16 @@ export function aStarSearch(grid, src, dest) {
         }
       }
     }
-    if (isValid(i - 1, j - 1) == true) {
+    if (isValid(i - 1, j - 1, GRID_HEIGHT, GRID_WIDTH) == true) {
       if (isDestination(i - 1, j - 1, dest) == true) {
         cellDetails[i - 1][j - 1].parent_i = i;
         cellDetails[i - 1][j - 1].parent_j = j;
         console.log("The destination cell is found\n");
-        tracePath(cellDetails, dest);
         foundDest = true;
-        return;
+        return tracePath(cellDetails, dest);
       } else if (
         closedList[i - 1][j - 1] == false &&
-        isUnBlocked(grid, i - 1, j - 1) == true
+        isUnBlocked(tilesGrid, i - 1, j - 1) == true
       ) {
         gNew = cellDetails[i][j].g + 1.414;
         hNew = calculateHValue(i - 1, j - 1, dest);
@@ -338,17 +327,16 @@ export function aStarSearch(grid, src, dest) {
         }
       }
     }
-    if (isValid(i + 1, j + 1) == true) {
+    if (isValid(i + 1, j + 1, GRID_HEIGHT, GRID_WIDTH) == true) {
       if (isDestination(i + 1, j + 1, dest) == true) {
         cellDetails[i + 1][j + 1].parent_i = i;
         cellDetails[i + 1][j + 1].parent_j = j;
         console.log("The destination cell is found\n");
-        tracePath(cellDetails, dest);
         foundDest = true;
-        return;
+        return tracePath(cellDetails, dest);
       } else if (
         closedList[i + 1][j + 1] == false &&
-        isUnBlocked(grid, i + 1, j + 1) == true
+        isUnBlocked(tilesGrid, i + 1, j + 1) == true
       ) {
         gNew = cellDetails[i][j].g + 1.414;
         hNew = calculateHValue(i + 1, j + 1, dest);
@@ -367,17 +355,16 @@ export function aStarSearch(grid, src, dest) {
         }
       }
     }
-    if (isValid(i + 1, j - 1) == true) {
+    if (isValid(i + 1, j - 1, GRID_HEIGHT, GRID_WIDTH) == true) {
       if (isDestination(i + 1, j - 1, dest) == true) {
         cellDetails[i + 1][j - 1].parent_i = i;
         cellDetails[i + 1][j - 1].parent_j = j;
         console.log("The destination cell is found\n");
-        tracePath(cellDetails, dest);
         foundDest = true;
-        return;
+        return tracePath(cellDetails, dest);
       } else if (
         closedList[i + 1][j - 1] == false &&
-        isUnBlocked(grid, i + 1, j - 1) == true
+        isUnBlocked(tilesGrid, i + 1, j - 1) == true
       ) {
         gNew = cellDetails[i][j].g + 1.414;
         hNew = calculateHValue(i + 1, j - 1, dest);
@@ -402,5 +389,5 @@ export function aStarSearch(grid, src, dest) {
 
   if (foundDest == false) console.log("Failed to find the Destination Cell\n");
 
-  return;
+  return [];
 }
